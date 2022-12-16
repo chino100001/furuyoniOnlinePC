@@ -32,6 +32,12 @@ bool card_back(int placeTo);
 bool sakura_relate(PLACE *placeRelate,int amountRelate,int indexCard);
 bool enhancment_relate(int sakuraNeed);
 bool drawcard(int amountCard);
+bool addConcentration();
+bool isReshuffle();
+bool enhancement_check();
+bool sectionStart();
+bool sectionMain();
+bool sectionEnd();
 
 bool damage(int damageAura,int damageHealth,PLACE *damageAuraGo=&VOID,PLACE *damageHealthGo=&POWEROPPO)
 {
@@ -424,7 +430,9 @@ bool enhancement_card_use(int indexCard)
 bool cost_check(int id)
 {
     //燃烧、理、尸、远心、距离
-    
+    int costPower=card[id].cost;
+    if(costPower>POWERSELF.amountSakura)
+        return 0;
     return 1;
 }
 
@@ -465,7 +473,8 @@ int card_choose(PLACE *placefrom,int typeCard,int typeUse,int subtypeUse,bool us
                         if(!useRange[range_count()])
                             if(placefrom->aboutCard[i].typeSuper==typeSuper || typeSuper==2)
                                 if(placefrom->aboutCard[i].megami==megami || megami==0)
-                                    index[i]=1;
+                                    if(cost_check(placefrom->aboutCard[i].id))
+                                        index[i]=1;
     }
 
     cout<<endl;
@@ -569,6 +578,79 @@ bool drawcard(int amountCard)
         else if(DECKSELF.amountCard==0)
             damage(1,1);
     }    
+    return 1;
+}
+
+bool addConcentration()
+{
+    if(stunSelf)
+        stunSelf=0;
+    else if(concentraSelf<2)
+        concentraSelf++;
+    return 1;
+}
+
+bool enhancement_check()
+{
+    //执行破弃效果,取消展开中标签
+    return 1;
+}
+
+bool isReshuffle()
+{
+    damage(num_inf,1);
+    while(BEHINDSELF.amountCard>0)
+        card_move(&BEHINDSELF,&RAND,BEHINDSELF.amountCard,RAND.amountCard+1);
+    while(FRONTSELF.amountCard>0)
+        card_move(&FRONTSELF,&RAND,FRONTSELF.amountCard,RAND.amountCard+1);
+    while(DECKSELF.amountCard>0)
+        card_move(&DECKSELF,&RAND,DECKSELF.amountCard,RAND.amountCard+1);
+    while(RAND.amountCard>0)
+    {
+        srand(time(NULL));
+        int numReshuffle=rand()%(RAND.amountCard+1);
+        card_move(&RAND,&DECKSELF,numReshuffle,DECKSELF.amountCard+1);
+    }
+    return 1;
+}
+
+bool sectionStart()
+{
+    addConcentration();
+    for(int i=1;i<=ENHANCEMENTSELF.amountCard;i++)
+        sakura_relate(&ENHANCEMENTSELF,-1,i);
+    for(int i=1;i<=ENHANCEMENTOPPO.amountCard;i++)
+        sakura_relate(&ENHANCEMENTOPPO,-1,i);
+    enhancement_check();
+    isReshuffle();
+    drawcard(2);
+
+    return 1;
+}
+
+bool sectionMain()
+{
+    int action_choose;
+    cin>>action_choose;
+    if(action_choose==1)
+    {
+        //标准使用
+        //选基本动作，通常牌，王牌，等等
+    }
+    if(action_choose==2)
+    {
+        //全力使用
+    }
+    return 1;
+}
+
+bool sectionEnd()
+{
+    while(HANDSELF.amountCard<=2)
+    {
+        int indexThrow=card_choose(&HANDSELF,0,0,0,all);
+        card_move(&HANDSELF,&BEHINDSELF,indexThrow,BEHINDSELF.amountCard+1);
+    }
     return 1;
 }
 
