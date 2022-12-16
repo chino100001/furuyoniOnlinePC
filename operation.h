@@ -9,6 +9,8 @@
 using namespace std;
 #define num_inf 10000
 
+bool all[100]={1};
+
 bool damage(int damageAura,int damageHealth,PLACE *damageAuraGo,PLACE *damageHealthGo);
 bool attack(int cardID,bool rangeAttack[],int damageAura,int damageHealth,int magami,bool normalReact,bool superReact,bool react,bool isAvoid,bool overDamage);
 int reaction(bool normalReact,bool superReact);
@@ -23,11 +25,13 @@ bool action_card_use(int indexCard);
 bool attack_card_use(int indexCard);
 bool enhancement_card_use(int indexCard);
 bool card_use(int indexCard,PLACE *placefrom);
-int card_choose(PLACE *placefrom,int typeCard,int typeUse,int subtypeUse,int isSelfMegami,int typeSuper,int megami,int isBuild,int isPerjury,int isSet);
+int card_choose(PLACE *placefrom,int typeCard,int typeUse,int subtypeUse,bool useRange[],int isSelfMegami,int typeSuper,int megami,int isBuild,int isPerjury,int isSet);
 bool cost_check(int id);
 int getId(int indexCard,PLACE *placefrom);
 bool card_back(int placeTo);
 bool sakura_relate(PLACE *placeRelate,int amountRelate,int indexCard);
+bool enhancment_relate(int sakuraNeed);
+bool drawcard(int amountCard);
 
 bool damage(int damageAura,int damageHealth,PLACE *damageAuraGo=&VOID,PLACE *damageHealthGo=&POWEROPPO)
 {
@@ -49,8 +53,12 @@ bool damage(int damageAura,int damageHealth,PLACE *damageAuraGo=&VOID,PLACE *dam
 bool attack(int cardID,bool rangeAttack[],int damageAura,int damageHealth,int magami,bool normalReact=1,bool superReact=1,bool react=1,bool isAvoid=1,bool overDamage=0)
 {
     bool isDamage=1,isEffect=1;
+    if(!rangeAttack[range_count()])
+        return 0;
     if(react)
         int reactid=reaction(normalReact,superReact);
+    if(!rangeAttack[range_count()])
+        return 0;
     if(isDamage)
         damage(damageAura,damageHealth);
     return 1;
@@ -444,9 +452,28 @@ bool card_use(int indexCard,PLACE *placefrom)
     return 1;
 }
 
-int card_choose(PLACE *placefrom,int typeCard,int typeUse,int subtypeUse,int isSelfMegami=2,int typeSuper=0,int megami=0,int isBuild=1,int isPerjury=0,int isSet=0)
+int card_choose(PLACE *placefrom,int typeCard,int typeUse,int subtypeUse,bool useRange[],int isSelfMegami=0,int typeSuper=2,int megami=0,int isBuild=1,int isPerjury=0,int isSet=0)
 {
     int indexCard;
+    bool index[100]={0};
+    for(int i=1;i<=placefrom->amountCard;i++)
+    {
+        if(card[placefrom->aboutCard[i].id].cardtype==typeCard || typeCard==0)
+            if(card[placefrom->aboutCard[i].id].usedtype==typeUse || typeUse==0)
+                if(card[placefrom->aboutCard[i].id].subusedtype==typeUse || subtypeUse==0)
+                    if(card[placefrom->aboutCard[i].id].megami!=isSelfMegami || isSelfMegami==0)
+                        if(!useRange[range_count()])
+                            if(placefrom->aboutCard[i].typeSuper==typeSuper || typeSuper==2)
+                                if(placefrom->aboutCard[i].megami==megami || megami==0)
+                                    index[i]=1;
+    }
+
+    cout<<endl;
+    for(int i=1;i<=placefrom->amountCard;i++)
+        cout<<placefrom->aboutCard[i].id<<" ";
+    cout<<endl;
+    cin>>indexCard;
+
     return indexCard;
 }
 //build构筑,perjury伪证,set设置
@@ -471,13 +498,13 @@ int reaction(bool normalReact,bool superReact)
 
     if(chooseReact==1 && normalReact)
     {
-        indexReact=card_choose(&HANDSELF,1,0,2);
+        indexReact=card_choose(&HANDSELF,1,0,2,all);
         card_use(indexReact,&HANDSELF);
         getId(indexReact,&HANDSELF);
     }
     else if(chooseReact==2 && superReact)
     {
-        indexReact=card_choose(&SUPERSELF,2,0,2);
+        indexReact=card_choose(&SUPERSELF,2,0,2,all);
         card_use(indexReact,&SUPERSELF);
         getId(indexReact,&SUPERSELF);
     }
@@ -492,7 +519,7 @@ bool card_back(int placeTo=0)
         int cardId=getId(USINGSELF.amountCard,&USINGSELF);
         if(card[cardId].usedtype==3)
         {
-            //关联
+            enhancment_relate(card[cardId].amountEnhancement);
             card_move(&USINGSELF,&ENHANCEMENTSELF,USINGSELF.amountCard,ENHANCEMENTSELF.amountCard+1);
         }
         else if(card[cardId].cardtype==1)
@@ -510,6 +537,38 @@ bool card_back(int placeTo=0)
 bool sakura_relate(PLACE *placeRelate,int amountRelate,int indexCard)
 {
     placeRelate->aboutCard[indexCard].sakura+=amountRelate;
+    return 1;
+}
+
+bool enhancment_relate(int sakuraNeed)
+{
+    int auraProvide,voidProvide;
+    if(AURASELF.amountSakura+VOID.amountSakura>sakuraNeed)
+    {
+        cin>>auraProvide>>voidProvide;
+        sakura_move(&AURASELF,&USINGSELF,auraProvide);
+        sakura_move(&VOID,&USINGSELF,voidProvide);
+        sakura_relate(&USINGSELF,auraProvide+voidProvide,USINGSELF.amountCard);
+    }
+    else
+    {
+        int numRelate=AURASELF.amountSakura+VOID.amountSakura;
+        sakura_move(&AURASELF,&USINGSELF,AURASELF.amountSakura);
+        sakura_move(&VOID,&USINGSELF,VOID.amountSakura);
+        sakura_relate(&USINGSELF,numRelate,USINGSELF.amountCard);
+    }
+    return 1;
+}
+
+bool drawcard(int amountCard)
+{
+    for(int i=1;i<=amountCard;i++)
+    {
+        if(DECKSELF.amountCard!=0)
+            card_move(&DECKSELF,&HANDSELF,DECKSELF.amountCard,HANDSELF.amountCard+1);
+        else if(DECKSELF.amountCard==0)
+            damage(1,1);
+    }    
     return 1;
 }
 
